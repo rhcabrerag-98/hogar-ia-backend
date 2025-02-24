@@ -41,7 +41,7 @@ app.post("/api/create-payment-intent", async (req, res) => {
 });
 
 // Endpoint para subir imágenes a Supabase Storage
-app.post("/upload", upload.single("file"), async (req, res) => {
+app.post("/api/profile/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file)
       return res.status(400).json({ error: "No se envió ningún archivo" });
@@ -54,7 +54,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       .from(process.env.BUCKET_NAME)
       .upload(fileName, file.buffer, {
         contentType: file.mimetype,
-        upsert: true, // 🔥 Permite sobrescribir si ya existe
       });
 
     if (error) throw error;
