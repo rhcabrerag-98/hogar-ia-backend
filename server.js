@@ -16,13 +16,7 @@ const supabase = createClient(
 );
 
 app.use(express.json());
-app.use(
-  cors({
-    origin: "*", // O reemplázalo con "http://localhost:3000" o el dominio de tu frontend en producción
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors());
 
 const PORT = process.env.PORT || 5000;
 
@@ -249,6 +243,7 @@ app.get("/api/profile/latest-image/:originalName", async (req, res) => {
   }
 });
 
+
 // Transportador de Nodemailer con Gmail (puedes cambiarlo a otro servicio SMTP)
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -264,41 +259,38 @@ const transporter = nodemailer.createTransport({
 app.post("/api/send-email", async (req, res) => {
   const { email, orderDetails } = req.body;
 
-  // Configuración del correo
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: "Confirmación de Pedido - Hogar.IA",
-    html: `
+    // Configuración del correo
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Confirmación de Pedido - Hogar.IA',
+        html: `
             <h2>¡Gracias por tu compra en Hogar.IA!</h2>
             <p>Detalles de tu pedido:</p>
             <ul>
-                ${orderDetails.orderItems
-                  .map(
+                ${orderDetails.orderItems.map(
                     (item) => `
                         <li>${item.productName} - ${item.color_name} - ${item.storage} - ${item.price}</li>
                     `
-                  )
-                  .join("")}
+                ).join('')}
             </ul>
             <p><strong>Total: ${orderDetails.totalAmount}</strong></p>
-            <p>Dirección de envío: ${orderDetails.address.addressLine1}, ${
-      orderDetails.address.city
-    }</p>
+            <p>Dirección de envío: ${orderDetails.address.addressLine1}, ${orderDetails.address.city}</p>
             <p>Gracias por confiar en nosotros.</p>
         `,
-  };
+    };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    res.status(200).json({ message: "Correo enviado con éxito" });
-  } catch (error) {
-    console.error("Error al enviar el correo:", error);
-    res.status(500).json({ error: "Error al enviar el correo" });
-  }
+    try {
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({ message: 'Correo enviado con éxito' });
+    } catch (error) {
+        console.error('Error al enviar el correo:', error);
+        res.status(500).json({ error: 'Error al enviar el correo' });
+    }
 });
 
 // Iniciar el servidor en el puerto 3001
 //app.listen(5000, () => console.log('Servidor corriendo en http://localhost:5000'));
 
 //--
+
