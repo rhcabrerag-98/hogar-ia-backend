@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
+import nodemailer from "nodemailer";
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -241,3 +242,55 @@ app.get("/api/profile/latest-image/:originalName", async (req, res) => {
     res.status(500).json({ error: "Error al obtener la última imagen" });
   }
 });
+
+
+// Transportador de Nodemailer con Gmail (puedes cambiarlo a otro servicio SMTP)
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  secure: false, // true para 465, false para otros puertos
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// Ruta para enviar correos
+app.post('/send-email', async (req, res) => {
+    const { email, orderDetails } = req.body;
+
+    // Configuración del correo
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Confirmación de Pedido - Hogar.IA',
+        html: `
+            <h2>¡Gracias por tu compra en Hogar.IA!</h2>
+            <p>Detalles de tu pedido:</p>
+            <ul>
+                ${orderDetails.orderItems.map(
+                    (item) => `
+                        <li>${item.productName} - ${item.color_name} - ${item.storage} - ${item.price}</li>
+                    `
+                ).join('')}
+            </ul>
+            <p><strong>Total: ${orderDetails.totalAmount}</strong></p>
+            <p>Dirección de envío: ${orderDetails.address.addressLine1}, ${orderDetails.address.city}</p>
+            <p>Gracias por confiar en nosotros.</p>
+        `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({ message: 'Correo enviado con éxito' });
+    } catch (error) {
+        console.error('Error al enviar el correo:', error);
+        res.status(500).json({ error: 'Error al enviar el correo' });
+    }
+});
+
+// Iniciar el servidor en el puerto 3001
+//app.listen(5000, () => console.log('Servidor corriendo en http://localhost:5000'));
+
+//--
+
