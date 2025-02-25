@@ -48,9 +48,8 @@ app.post("/api/profile/upload", upload.single("file"), async (req, res) => {
 
     const file = req.file;
     //const fileName = `avatars/${file.originalname}`;
-     const timestamp = Date.now();
-     const fileName = `avatars/${timestamp}_${file.originalname}`;
-
+    const timestamp = Date.now();
+    const fileName = `avatars/${timestamp}_${file.originalname}`;
 
     // Eliminar imagen anterior si existe antes de subir la nueva
     await supabase.storage.from(process.env.BUCKET_NAME).remove([fileName]);
@@ -177,5 +176,68 @@ app.put("/api/profile/update", upload.single("file"), async (req, res) => {
   } catch (error) {
     console.error("Error al actualizar la imagen:", error.message);
     res.status(500).json({ error: "Error al actualizar la imagen" });
+  }
+});
+
+//
+app.get("/api/profile/all-files", async (req, res) => {
+  try {
+    const { data, error } = await supabase.storage
+      .from(process.env.BUCKET_NAME)
+      .list("avatars");
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error("Error al obtener archivos:", error.message);
+    res.status(500).json({ error: "Error al obtener archivos" });
+  }
+});
+
+app.get("/api/profile/latest-image/:originalName", async (req, res) => {
+  try {
+    const { originalName } = req.params;
+
+    // Listar archivos en el bucket "avatars"
+    const { data, error } = await supabase.storage
+      .from(process.env.BUCKET_NAME)
+      .list("avatars");
+
+    if (error) throw error;
+
+    // Filtrar archivos que contienen el originalName en su nombre
+    const matchingFiles = data
+      .filter((file) => file.name.includes(`_${originalName}`))
+      .sort((a, b) => {
+        // Extraer el timestamp del nombre del archivo
+        const timestampA = parseInt(a.name.split("_")[0], 10);
+        const timestampB = parseInt(b.name.split("_")[0], 10);
+        return timestampB - timestampA; // Ordenar de más reciente a más antiguo
+      });
+
+    if (matchingFiles.length === 0) {
+      return res.status(404).json({ error: "No se encontró ninguna imagen" });
+    }
+
+    // Tomar el archivo más reciente
+    const latestFile = matchingFiles[0];
+
+    // Obtener la URL pública correctamente
+    const { publicUrl } = supabase.storage
+      .from(process.env.BUCKET_NAME)
+      .getPublicUrl(`avatars/${latestFile.name}`);
+
+    res.json({
+      imageUrl:
+        "https://tuagrdrzxnmsdazaohta.supabase.co/storage/v1/object/public/profile-images/avatars/" +
+        latestFile.name,
+      url: supabase.storage
+        .from(process.env.BUCKET_NAME)
+        .getPublicUrl(`avatars/${latestFile.name}`).publicUrl,
+    });
+  } catch (error) {
+    console.error("Error al obtener la última imagen:", error.message);
+    res.status(500).json({ error: "Error al obtener la última imagen" });
   }
 });
