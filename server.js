@@ -276,7 +276,7 @@ app.post('/send-email', async (req, res) => {
             </ul>
             <p><strong>Total: ${orderDetails.totalAmount}</strong></p>
             <p>Dirección de envío: ${orderDetails.address.addressLine1}, ${orderDetails.address.city}</p>
-            <p>Gracias por confiar en nosotros.</p>
+            <p>Gracias por confiar en nosotros...</p>
         `,
     };
 
@@ -292,5 +292,5 @@ app.post('/send-email', async (req, res) => {
 // Iniciar el servidor en el puerto 3001
 //app.listen(5000, () => console.log('Servidor corriendo en http://localhost:5000'));
 
-//--
+//--cc
 
