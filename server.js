@@ -17,13 +17,13 @@ const supabase = createClient(
 app.use(express.json());
 app.use(cors());
 
-// Configuración de Multer para manejo de archivos en memoria
+const PORT = process.env.PORT || 5000;
+
+// 🖼️ **Configuración de Multer para manejar archivos en memoria**
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-const PORT = process.env.PORT || 5000;
-
-// Endpoint para crear un PaymentIntent
+// 🎯 **Crear PaymentIntent con Stripe**
 app.post("/api/create-payment-intent", async (req, res) => {
   try {
     const { amount, currency } = req.body;
@@ -40,25 +40,32 @@ app.post("/api/create-payment-intent", async (req, res) => {
   }
 });
 
-// Endpoint para subir imágenes a Supabase Storage
+// 📤 **Subir imagen a Supabase Storage**
 app.post("/api/profile/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file)
       return res.status(400).json({ error: "No se envió ningún archivo" });
 
     const file = req.file;
-    const fileName = `avatars/${file.originalname}`;
+    //const fileName = `avatars/${file.originalname}`;
+     const timestamp = Date.now();
+     const fileName = `avatars/${timestamp}_${file.originalname}`;
 
-    // Subir archivo a Supabase Storage
+
+    // Eliminar imagen anterior si existe antes de subir la nueva
+    await supabase.storage.from(process.env.BUCKET_NAME).remove([fileName]);
+
+    // Subir nueva imagen a Supabase Storage
     const { data, error } = await supabase.storage
       .from(process.env.BUCKET_NAME)
       .upload(fileName, file.buffer, {
         contentType: file.mimetype,
+        upsert: true, // Sobrescribir si ya existe
       });
 
     if (error) throw error;
 
-    // Obtener la URL pública de la imagen
+    // Obtener URL pública de la imagen
     const { publicUrl } = supabase.storage
       .from(process.env.BUCKET_NAME)
       .getPublicUrl(fileName);
@@ -70,6 +77,105 @@ app.post("/api/profile/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+// 🖼️ **Obtener URL de la imagen de perfil**
+app.get("/api/profile/image/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId)
+      return res.status(400).json({ error: "ID del usuario no proporcionado" });
+
+    const fileName = `avatars/${userId}.jpg`; // Ajustar según el formato de almacenamiento
+
+    // Obtener la URL pública de la imagen
+    const { data } = supabase.storage
+      .from(process.env.BUCKET_NAME)
+      .getPublicUrl(fileName);
+
+    if (!data.publicUrl) {
+      return res.status(404).json({ error: "Imagen no encontrada" });
+    }
+
+    res.json({ imageUrl: data.publicUrl });
+  } catch (error) {
+    console.error("Error al obtener la imagen del perfil:", error.message);
+    res.status(500).json({ error: "Error al obtener la imagen del perfil" });
+  }
+});
+
+// 🗑️ **Eliminar imagen de Supabase Storage**
+app.delete("/api/profile/delete/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const fileName = `avatars/${userId}.jpg`; // Ajusta según cómo guardas los archivos
+
+    // Verificar si la imagen existe antes de eliminarla
+    const { data } = await supabase.storage
+      .from(process.env.BUCKET_NAME)
+      .list("avatars");
+
+    if (!data || data.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Imagen no encontrada en Supabase" });
+    }
+
+    // Intentar eliminar la imagen en Supabase Storage
+    const { error } = await supabase.storage
+      .from(process.env.BUCKET_NAME)
+      .remove([fileName]);
+
+    if (error) {
+      return res
+        .status(500)
+        .json({ error: "Error al eliminar la imagen", details: error.message });
+    }
+
+    res.json({ message: "Imagen eliminada correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar la imagen:", error.message);
+    res.status(500).json({ error: "Error al eliminar la imagen" });
+  }
+});
+
+// 🚀 **Iniciar servidor**
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});
+
+//cODIGO DEL UPDATE
+app.put("/api/profile/update", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No se envió ningún archivo" });
+    }
+
+    const file = req.file;
+    const { userId } = req.body; // Se espera que el userId venga en el body
+
+    if (!userId) {
+      return res.status(400).json({ error: "ID del usuario no proporcionado" });
+    }
+
+    const fileName = `avatars/${userId}.jpg`; // Se usa el ID del usuario como nombre de archivo
+
+    // Subir o sobrescribir la imagen en Supabase Storage
+    const { data, error } = await supabase.storage
+      .from(process.env.BUCKET_NAME)
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true, // Permite sobrescribir el archivo existente
+      });
+
+    if (error) throw error;
+
+    // Obtener la URL pública de la imagen actualizada
+    const { publicUrl } = supabase.storage
+      .from(process.env.BUCKET_NAME)
+      .getPublicUrl(fileName);
+
+    res.json({ message: "Imagen actualizada con éxito", url: publicUrl });
+  } catch (error) {
+    console.error("Error al actualizar la imagen:", error.message);
+    res.status(500).json({ error: "Error al actualizar la imagen" });
+  }
 });
