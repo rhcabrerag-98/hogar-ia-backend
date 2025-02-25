@@ -256,8 +256,8 @@ const transporter = nodemailer.createTransport({
 });
 
 // Ruta para enviar correos
-app.post("/api/send-email", async (req, res) => {
-  const { email, orderDetails } = req.body;
+app.post('/send-email', async (req, res) => {
+    const { email, orderDetails } = req.body;
 
     // Configuración del correo
     const mailOptions = {
